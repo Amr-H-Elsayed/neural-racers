@@ -1,0 +1,11 @@
+WIDTH = 1000
+HEIGHT = 700
+FPS = 60
+
+BACKGROUND = (25, 27, 32)
+TRACK_COLOR = (65, 68, 75)
+BORDER_COLOR = (220, 220, 220)
+
+SENSOR_COUNT = 5
+SENSOR_LENGTH = 180
+SENSOR_ANGLE = 30  # Degrees between center and outer rays
