@@ -1,9 +1,9 @@
+
 import pygame
 import sys
 
 from settings import WIDTH, HEIGHT, FPS, BACKGROUND
 from car import Car
-
 
 pygame.init()
 
@@ -12,9 +12,7 @@ pygame.display.set_caption("Neural Racers")
 
 clock = pygame.time.Clock()
 
-
-# Track Settings
-
+# Track settings
 TRACK_GRAY = (60, 60, 60)
 WHITE = (255, 255, 255)
 BLACK = (0, 0, 0)
@@ -51,8 +49,7 @@ mid_rect = pygame.Rect(
 mid_radius = outer_radius - track_width // 2
 
 
-# Track
-
+# Track drawing
 def draw_finish_line(surface):
     square_size = 12
 
@@ -80,7 +77,6 @@ def draw_finish_line(surface):
 def draw_track(surface):
     surface.fill(BACKGROUND)
 
-    # Outer track
     pygame.draw.rect(
         surface,
         TRACK_GRAY,
@@ -96,7 +92,6 @@ def draw_track(surface):
         border_radius=outer_radius
     )
 
-    # Inner grass
     pygame.draw.rect(
         surface,
         BACKGROUND,
@@ -112,7 +107,6 @@ def draw_track(surface):
         border_radius=inner_radius
     )
 
-    # Center line
     pygame.draw.rect(
         surface,
         CENTER_LINE_YELLOW,
@@ -123,36 +117,49 @@ def draw_track(surface):
 
     draw_finish_line(surface)
 
+
+# Create transparent track mask for sensors
 def create_track_mask():
-    mask_surface = pygame.Surface((WIDTH, HEIGHT))
-    mask_surface.fill((0, 0, 0))
+    mask_surface = pygame.Surface(
+        (WIDTH, HEIGHT),
+        pygame.SRCALPHA
+    )
+
+    mask_surface.fill((0, 0, 0, 0))
 
     pygame.draw.rect(
         mask_surface,
-        (255, 255, 255),
+        (255, 255, 255, 255),
         outer_rect,
         border_radius=outer_radius
     )
 
     pygame.draw.rect(
         mask_surface,
-        (0, 0, 0),
+        (0, 0, 0, 0),
         inner_rect,
         border_radius=inner_radius
     )
 
     return pygame.mask.from_surface(mask_surface)
 
+
 track_mask = create_track_mask()
 
 
-# Collision Detection
-
+# Collision detection
 def point_in_rounded_rect(point, rect, radius):
     x, y = point
 
-    closest_x = max(rect.left + radius, min(x, rect.right - radius))
-    closest_y = max(rect.top + radius, min(y, rect.bottom - radius))
+    closest_x = max(
+        rect.left + radius,
+        min(x, rect.right - radius)
+    )
+
+    closest_y = max(
+        rect.top + radius,
+        min(y, rect.bottom - radius)
+    )
 
     dx = x - closest_x
     dy = y - closest_y
@@ -162,7 +169,6 @@ def point_in_rounded_rect(point, rect, radius):
 
 def is_on_track(car):
     for corner in car.get_corners():
-
         inside_outer = point_in_rounded_rect(
             corner, outer_rect, outer_radius
         )
@@ -178,15 +184,17 @@ def is_on_track(car):
 
 
 # Car
+def create_car():
+    return Car(
+        WIDTH // 2 - 100,
+        outer_rect.top + track_width // 2
+    )
 
-car = Car(
-    WIDTH // 2 - 100,
-    outer_rect.top + track_width // 2
-)
+
+car = create_car()
 
 
 # Main loop
-
 running = True
 
 while running:
@@ -198,20 +206,16 @@ while running:
 
         if event.type == pygame.KEYDOWN:
             if event.key == pygame.K_r:
-                car = Car(
-                    WIDTH // 2 - 100,
-                    outer_rect.top + track_width // 2
-                )
+                car = create_car()
 
-    keys = pygame.key.get_pressed()
-
+    # Autonomous driving
     if car.alive:
-        car.update(keys, dt)
-        car.update_sensors(track_mask)
+        car.update_auto(dt, track_mask)
 
         if not is_on_track(car):
             car.alive = False
 
+    # Rendering
     draw_track(screen)
 
     if car.alive:

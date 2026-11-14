@@ -1,6 +1,5 @@
 
 import pygame
-import math
 from settings import SENSOR_COUNT, SENSOR_LENGTH, SENSOR_ANGLE
 
 
@@ -17,15 +16,15 @@ class Car:
         self.max_reverse = -100
         self.friction = 120
 
-        self.steering_speed = 180  # Degrees per second
+        self.steering_speed = 180
 
         self.width = 36
         self.height = 20
 
         self.alive = True
 
+    # Manual driving (kept for future testing)
     def update(self, keys, dt):
-        # Acceleration and braking
         if keys[pygame.K_w]:
             self.speed += self.acceleration * dt
 
@@ -43,7 +42,6 @@ class Car:
             min(self.speed, self.max_speed)
         )
 
-        # Steering
         if abs(self.speed) > 5:
             steering = 0
 
@@ -62,10 +60,44 @@ class Car:
                 * dt
             )
 
-        # Movement
         direction = pygame.Vector2(1, 0).rotate(self.angle)
         self.position += direction * self.speed * dt
 
+    # Autonomous driving
+    def update_auto(self, dt, track_mask):
+        self.update_sensors(track_mask)
+
+        # Sensors 0 and 1 look left.
+        # Sensors 3 and 4 look right.
+        left_space = self.sensors[0] + self.sensors[1]
+        right_space = self.sensors[3] + self.sensors[4]
+
+        # Steer toward the side with more available space.
+        steering = (
+            right_space - left_space
+        ) / (2 * SENSOR_LENGTH)
+
+        steering = max(-1, min(1, steering))
+
+        # Accelerate toward target speed.
+        target_speed = 140
+
+        if self.speed < target_speed:
+            self.speed = min(
+                target_speed,
+                self.speed + self.acceleration * dt
+            )
+
+        # Turn the car.
+        self.angle += (
+            steering * self.steering_speed * dt
+        )
+
+        # Move forward.
+        direction = pygame.Vector2(1, 0).rotate(self.angle)
+        self.position += direction * self.speed * dt
+
+    # Car collision corners
     def get_corners(self):
         half_width = self.width / 2
         half_height = self.height / 2
@@ -82,25 +114,28 @@ class Car:
             for corner in corners
         ]
 
-
+    # Sensor raycasting
     def cast_sensor(self, angle, track_mask):
         direction = pygame.Vector2(1, 0).rotate(angle)
 
+        mask_width, mask_height = track_mask.get_size()
+
         for distance in range(0, SENSOR_LENGTH + 1, 2):
             point = self.position + direction * distance
-            x, y = int(point.x), int(point.y)
 
-            # Out of screen bounds
-            if not (0 <= x < track_mask.get_width()
-                 and 0 <= y < track_mask.get_height()):
+            x = int(point.x)
+            y = int(point.y)
+
+            if not (
+                0 <= x < mask_width
+                and 0 <= y < mask_height
+            ):
                 return distance
 
-            # The sensor has reached grass / outside the track
             if track_mask.get_at((x, y)) == 0:
                 return distance
 
         return SENSOR_LENGTH
-
 
     def update_sensors(self, track_mask):
         sensor_angles = [
@@ -116,12 +151,18 @@ class Car:
             for angle in sensor_angles
         ]
 
-
+    # Draw sensors
     def draw_sensors(self, surface):
+        sensor_offsets = [
+            -SENSOR_ANGLE,
+            -SENSOR_ANGLE / 2,
+            0,
+            SENSOR_ANGLE / 2,
+            SENSOR_ANGLE
+        ]
+
         for distance, angle_offset in zip(
-            self.sensors,
-            [-SENSOR_ANGLE, -SENSOR_ANGLE / 2, 0,
-             SENSOR_ANGLE / 2, SENSOR_ANGLE]
+            self.sensors, sensor_offsets
         ):
             direction = pygame.Vector2(1, 0).rotate(
                 self.angle + angle_offset
@@ -144,7 +185,7 @@ class Car:
                 4
             )
 
-
+    # Draw car
     def draw(self, surface):
         car_surface = pygame.Surface(
             (self.width, self.height),
@@ -158,7 +199,6 @@ class Car:
             border_radius=5
         )
 
-        # Windshield
         pygame.draw.rect(
             car_surface,
             (120, 200, 230),
